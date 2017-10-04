@@ -72,3 +72,4 @@ set(BRACING2D_COMMON_LIBRARIES
 set (BRACING2D_BINARY_DIR                  ${PROJECT_SOURCE_DIR}/bin)
 
 add_subdirectory(01-gravity_compensation)
+add_subdirectory(02-energy_efficiency)

@@ -1,0 +1,19 @@
+# create an executable
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BRACING2D_BINARY_DIR}/02-energy_efficiency)
+ADD_EXECUTABLE (simulation02 simulation_main.cpp ${BRACING2D_COMMON_SOURCE})
+ADD_EXECUTABLE (visualizer02 visualizer_main.cpp ${BRACING2D_COMMON_SOURCE})
+ADD_EXECUTABLE (controller02 controller_main.cpp ${BRACING2D_COMMON_SOURCE})
+
+# and link the library against the executable
+TARGET_LINK_LIBRARIES (simulation02 ${BRACING2D_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (visualizer02 ${BRACING2D_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (controller02 ${BRACING2D_COMMON_LIBRARIES})
+
+# export resources such as model files.
+# NOTE: this requires an install build
+SET(RESOURCE_DIR ${BRACING2D_BINARY_DIR}/resources)
+FILE(MAKE_DIRECTORY ${RESOURCE_DIR})
+SET(APP_RESOURCE_DIR ${RESOURCE_DIR}/02-energy_efficiency)
+FILE(MAKE_DIRECTORY ${APP_RESOURCE_DIR})
+FILE(COPY world.urdf DESTINATION ${APP_RESOURCE_DIR})
+FILE(COPY 4pbot_fixed.urdf DESTINATION ${APP_RESOURCE_DIR})
