@@ -61,9 +61,10 @@ int main() {
 	// load robots
 	auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
 
-	sim->setJointPosition(robot_name, 0, -60.0/180.0*M_PI);
-	sim->setJointPosition(robot_name, 1, -30.0/180.0*M_PI);
-	sim->setJointPosition(robot_name, 2, -30.0/180.0*M_PI);
+	sim->setJointPosition(robot_name, 0, -50.0/180.0*M_PI);
+	sim->setJointPosition(robot_name, 1, -15.0/180.0*M_PI);
+	sim->setJointPosition(robot_name, 2, -95.0/180.0*M_PI);
+	sim->setJointPosition(robot_name, 3, 60.0/180.0*M_PI);
 
 	// create simulated force sensors
 	Eigen::Affine3d fsensor_location = Eigen::Affine3d::Identity();

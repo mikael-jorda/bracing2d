@@ -86,7 +86,9 @@ int main() {
 
 	Eigen::Vector3d pos3d;
 	Eigen::Vector2d x, xdot;
-	Eigen::Vector2d xd = Eigen::Vector2d(3.0, 1.0);
+	Eigen::Vector3d x_init;
+	robot->position(x_init, link_name, pos_in_link);
+	Eigen::Vector2d xd = x_init.tail(2);
 
 	// create a loop timer
 	double control_freq = 1000;
@@ -155,7 +157,13 @@ int main() {
 
 		if(controller_counter % 500 == 0)
 		{
-			cout << command_torques.transpose() << endl;
+			// cout << command_torques.transpose() << endl;
+			// cout << 180.0/M_PI*robot->_q.transpose() << endl;
+			// cout << endl;
+		}
+		if(controller_counter == 3000)
+		{
+			gpjs = false;
 		}
 
 		controller_counter++;
