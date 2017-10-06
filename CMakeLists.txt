@@ -10,6 +10,17 @@ set (BRACING2D_COMMON_SOURCE
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
 # set common dependencies
+# - eigen3
+set(EIGEN3_INCLUDE_DIR $ENV{EIGEN3_INCLUDE_DIR})
+if(NOT EIGEN3_INCLUDE_DIR)
+	find_package(Eigen3 QUIET)
+	# TODO: Find automatic way to find for Ubuntu 14.04
+	if(NOT EIGEN3_INCLUDE_DIR)
+		set(EIGEN3_INCLUDE_DIR /usr/include/eigen3)
+	endif()
+endif()
+include_directories(${EIGEN3_INCLUDE_DIR})
+
 # - CHAI3D
 find_package(CHAI3D REQUIRED)
 include_directories(${CHAI3D_INCLUDE_DIRS})
@@ -48,17 +59,6 @@ elseif (CMAKE_SYSTEM_NAME MATCHES Linux)
 	link_directories(${JSONCPP_LIBRARY_DIRS})
 	set(JSONCPP_LIBRARY ${JSONCPP_LIBRARIES})
 endif ()
-
-# - eigen3
-set(EIGEN3_INCLUDE_DIR $ENV{EIGEN3_INCLUDE_DIR})
-if(NOT EIGEN3_INCLUDE_DIR)
-	find_package(Eigen3 QUIET)
-	# TODO: Find automatic way to find for Ubuntu 14.04
-	if(NOT EIGEN3_INCLUDE_DIR)
-		set(EIGEN3_INCLUDE_DIR /usr/include/eigen3)
-	endif()
-endif()
-include_directories(${EIGEN3_INCLUDE_DIR})
 
 set(BRACING2D_COMMON_LIBRARIES
 	${CHAI3D_LIBARIES}

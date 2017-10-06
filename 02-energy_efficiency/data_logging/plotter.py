@@ -16,21 +16,20 @@ file = np.loadtxt(sys.argv[1] ,skiprows=1)
 time = file[:,0]
 commanded_torques = file[:,1:5]
 # cmap = ['r','k']
+# 
+
+norm1_torques = abs(commanded_torques)
+total_power = np.sum(commanded_torques,1)
 
 plt.figure(1)
 plt.plot(commanded_torques,label="fgc")
 plt.legend()
 
+plt.figure(2)
+plt.plot(total_power)
+plt.title("Total motor power")
+
+
 plt.show()
 
 
-# include Eigen
-set(EIGEN3_INCLUDE_DIR $ENV{EIGEN3_INCLUDE_DIR})
-if(NOT EIGEN3_INCLUDE_DIR)
-	find_package(Eigen3 QUIET)
-	# TODO: Find automatic way to find for Ubuntu 14.04
-	if(NOT EIGEN3_INCLUDE_DIR)
-		set(EIGEN3_INCLUDE_DIR /usr/include/eigen3)
-	endif()
-endif()
-include_directories(${EIGEN3_INCLUDE_DIR})
