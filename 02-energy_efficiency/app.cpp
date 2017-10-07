@@ -2,6 +2,7 @@
 #include <string>
 #include <thread>
 #include <math.h>
+#include <fstream>
 
 #include "model/ModelInterface.h"
 #include "graphics/ChaiGraphics.h"
@@ -28,6 +29,7 @@ const string camera_name = "camera_fixed";
 // simulation loop
 void control(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim);
 void simulation(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim);
+void logger(Model::ModelInterface* robot);
 
 // initialize window manager
 GLFWwindow* glfwInitialize();
@@ -49,6 +51,8 @@ bool fTransYn = false;
 bool fTransZp = false;
 bool fTransZn = false;
 bool fRotPanTilt = false;
+
+Eigen::VectorXd command_torques;
 
 int main (int argc, char** argv) {
 	cout << "Loading URDF world model file: " << world_file << endl;
@@ -93,6 +97,9 @@ int main (int argc, char** argv) {
 
 	// next start the control thread
 	thread ctrl_thread(control, robot, sim);
+
+	// start the logging thread
+	thread logging_thread(logger, robot);
 	
     // while window is open:
     while (!glfwWindowShouldClose(window)) {
@@ -170,6 +177,7 @@ int main (int argc, char** argv) {
 	fSimulationRunning = false;
 	sim_thread.join();
 	ctrl_thread.join();
+	logging_thread.join();
 
     // destroy context
     glfwDestroyWindow(window);
@@ -185,7 +193,7 @@ void control(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim) {
 	robot->updateModel();
 
 	int dof = robot->dof();
-	Eigen::VectorXd command_torques = Eigen::VectorXd::Zero(dof);
+	command_torques = Eigen::VectorXd::Zero(dof);
 	Eigen::VectorXd gravity_compensation;
 
 	// joint task
@@ -343,6 +351,45 @@ void simulation(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim) {
     std::cout << "Simulation Loop frequency : " << timer.elapsedCycles()/end_time << "Hz\n";
 }
 
+
+//------------------------------------------------------------------------------
+void logger(Model::ModelInterface* robot)
+{
+	std::ofstream fgc_file;
+	std::ofstream ee_pos_file;
+
+	fgc_file.open("../../02-energy_efficiency/data_logging/data/fgc.txt");
+	ee_pos_file.open("../../02-energy_efficiency/data_logging/data/ee_pos.txt");
+
+	fgc_file << "Timestep \t command torques\n";
+	ee_pos_file << "Timestep \t ee position\n";
+
+	Eigen::Vector3d ee_pos;
+	const string link_name = "link4";
+	const Eigen::Vector3d pos_in_link = Eigen::Vector3d(0.0, 0.0, 1.0);
+
+	// create a loop timer
+	LoopTimer timer;
+	timer.setLoopFrequency(1000);   // 1 KHz
+	double last_time = timer.elapsedTime(); //secs
+	bool fTimerDidSleep = true;
+	timer.initializeTimer(1000000); // 1 ms pause before starting loop
+
+	while(fSimulationRunning)
+	{
+		fTimerDidSleep = timer.waitForNextLoop();
+		double curr_time = timer.elapsedTime();
+
+		robot->position(ee_pos, link_name, pos_in_link);
+
+		fgc_file << curr_time << '\t' << command_torques.transpose() << '\n';
+		ee_pos_file << curr_time << '\t' << ee_pos.tail(2).transpose() << '\n';
+
+	}
+
+	fgc_file.close();
+	ee_pos_file.close();
+}
 
 //------------------------------------------------------------------------------
 GLFWwindow* glfwInitialize() {
