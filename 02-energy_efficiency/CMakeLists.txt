@@ -1,13 +1,15 @@
 # create an executable
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BRACING2D_BINARY_DIR}/02-energy_efficiency)
-ADD_EXECUTABLE (simulation02 simulation_main.cpp ${BRACING2D_COMMON_SOURCE})
-ADD_EXECUTABLE (visualizer02 visualizer_main.cpp ${BRACING2D_COMMON_SOURCE})
-ADD_EXECUTABLE (controller02 controller_main.cpp ${BRACING2D_COMMON_SOURCE})
+ADD_EXECUTABLE (app02 app.cpp ${BRACING2D_COMMON_SOURCE})
+# ADD_EXECUTABLE (simulation02 simulation_main.cpp ${BRACING2D_COMMON_SOURCE})
+# ADD_EXECUTABLE (visualizer02 visualizer_main.cpp ${BRACING2D_COMMON_SOURCE})
+# ADD_EXECUTABLE (controller02 controller_main.cpp ${BRACING2D_COMMON_SOURCE})
 
 # and link the library against the executable
-TARGET_LINK_LIBRARIES (simulation02 ${BRACING2D_COMMON_LIBRARIES})
-TARGET_LINK_LIBRARIES (visualizer02 ${BRACING2D_COMMON_LIBRARIES})
-TARGET_LINK_LIBRARIES (controller02 ${BRACING2D_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (app02 ${BRACING2D_COMMON_LIBRARIES})
+# TARGET_LINK_LIBRARIES (simulation02 ${BRACING2D_COMMON_LIBRARIES})
+# TARGET_LINK_LIBRARIES (visualizer02 ${BRACING2D_COMMON_LIBRARIES})
+# TARGET_LINK_LIBRARIES (controller02 ${BRACING2D_COMMON_LIBRARIES})
 
 # export resources such as model files.
 # NOTE: this requires an install build

@@ -29,17 +29,17 @@
 	</static_object>
 
 	<static_object name="Obstacle">
-		<origin xyz="0.0 -0.2 1.0" rpy="0 0 0" />
+		<origin xyz="0.0 -0.0 0.9" rpy="0 0 0" />
 		<collision>
 	        <origin xyz="-0.02 0.0 0.0" rpy="0 1.5707963267948966 0" />
 	        <geometry>
-                <cylinder radius="0.1" length="0.04" />
+                <cylinder radius="0.2" length="0.04" />
 	        </geometry>
 	    </collision>
 	    <visual>
 	        <origin xyz="-0.02 0.0 0.0" rpy="0 1.5707963267948966 0" />
 	        <geometry>
-                <cylinder radius="0.1" length="0.04" />
+                <cylinder radius="0.2" length="0.04" />
 	        </geometry>
 	        <material name="material_gray">
 		        <color rgba="0.0 0.0 0.5 1.0" />

@@ -3,7 +3,6 @@
 // Chai3D.
 
 #include "model/ModelInterface.h"
-#include "model/RBDLModel.h"
 #include "simulation/Sai2Simulation.h"
 #include "redis/RedisClient.h"
 #include <dynamics3d.h>
@@ -29,6 +28,7 @@ const string robot_name = "4PBOT";
 const std::string JOINT_ANGLES_KEY  = "sai2::bracing2d::sensors::q";
 const std::string JOINT_VELOCITIES_KEY = "sai2::bracing2d::sensors::dq";
 const std::string SIM_TIMESTAMP_KEY = "sai2::bracing2d::simulation::timestamp";
+const std::string JOINT_TORQUES_LOGGER_KEY = "sai2::bracing2d::actuators::fgc_logger";
 // - read
 const std::string CONTROLLER_RUNNING = "sai2::bracing2d::controller_running";
 const std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::bracing2d::actuators::fgc";
@@ -56,7 +56,7 @@ int main() {
 	auto sim = new Simulation::Sai2Simulation(world_file, Simulation::urdf, false);
 
 	sim->setCollisionRestitution(0);
-	sim->setCoeffFrictionStatic(0.9);
+	sim->setCoeffFrictionStatic(0.5);
 
 	// load robots
 	auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
@@ -77,7 +77,7 @@ int main() {
 	Eigen::VectorXd gravity_compensation;
 
 	// create a loop timer
-	double sim_freq = 5000;  // set the simulation frequency. Ideally 10kHz
+	double sim_freq = 2000;  // set the simulation frequency. Ideally 10kHz
 	LoopTimer timer;
 	timer.setLoopFrequency(sim_freq);   // 10 KHz
 	// timer.setThreadHighPriority();  // make timing more accurate. requires running executable as sudo.
@@ -88,6 +88,19 @@ int main() {
 
 	Eigen::Vector3d f, m;
 	Eigen::Vector3d F;
+
+	std::vector<std::string> link_names;
+	link_names.push_back("link0");
+	link_names.push_back("link1");
+	link_names.push_back("link2");
+	link_names.push_back("link3");
+	link_names.push_back("link4");
+
+	std::vector<Eigen::Vector3d> contact_points;
+	std::vector<Eigen::Vector3d> contact_forces;
+
+	Eigen::VectorXd contact_torques = Eigen::VectorXd::Zero(robot->dof());
+	Eigen::MatrixXd J_contact;
 
 	while (runloop) {
 		// wait for next scheduled loop
@@ -104,6 +117,38 @@ int main() {
 			robot_torques = gravity_compensation;
 		}
 
+		if(sim_counter % 1000 == 0)
+		{
+			sim->showContactInfo();
+		}
+
+		contact_torques = Eigen::VectorXd::Zero(robot->dof());
+		for(int i=0; i<link_names.size(); i++)
+		{
+			sim->getContactList(contact_points, contact_forces, robot_name, link_names[i]);
+			if(sim_counter % 1000 == 0)
+			{
+				std::cout << link_names[i] << " : " << contact_points.size() << " contact points" <<endl;
+			}
+			for(int k=0; k<contact_points.size(); k++)
+			{
+				if(sim_counter % 1000 == 0)
+				{
+					std::cout << endl << "contact point at " << link_names[i] << " : " << contact_points[k].transpose() << endl;
+				}
+				robot->Jv(J_contact, link_names[i], contact_points[k]);
+				contact_torques += J_contact.transpose() * contact_forces[k];
+			}
+		}
+
+		if(sim_counter % 1000 == 0)
+		{
+			cout << "contact torques : " << contact_torques.transpose() << endl << endl;
+			cout << "robot torques : " << robot_torques.transpose() << endl << endl;
+		}
+
+		// robot_torques += 0.9*contact_torques;
+		// robot_torques(1) -= 20;
 
 		sim->setJointTorques(robot_name, robot_torques);
 
@@ -125,6 +170,7 @@ int main() {
 		// write joint kinematics to redis
 		redis_client.setEigenMatrixDerived(JOINT_ANGLES_KEY, robot->_q);
 		redis_client.setEigenMatrixDerived(JOINT_VELOCITIES_KEY, robot->_dq);
+		redis_client.setEigenMatrixDerived(JOINT_TORQUES_LOGGER_KEY, robot_torques);
 
 		redis_client.setCommandIs(SIM_TIMESTAMP_KEY,std::to_string(timer.elapsedTime()));
 

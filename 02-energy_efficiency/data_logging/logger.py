@@ -33,7 +33,7 @@ r_server = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 # redis keys used in SAI2
 SIM_TIMESTAMP_KEY = "sai2::bracing2d::simulation::timestamp";
-JOINT_TORQUES_COMMANDED_KEY = "sai2::bracing2d::actuators::fgc";
+JOINT_TORQUES_LOGGER_KEY = "sai2::bracing2d::actuators::fgc_logger";
 
 # data logging frequency
 logger_frequency = 1000.0  # Hz
@@ -46,7 +46,7 @@ print 'Start Logging Data\n'
 while(runloop):
 	t += logger_period
 
-	commanded_torques = json.loads(r_server.get(JOINT_TORQUES_COMMANDED_KEY))
+	commanded_torques = json.loads(r_server.get(JOINT_TORQUES_LOGGER_KEY))
 
 	line = r_server.get(SIM_TIMESTAMP_KEY) + '\t' + " ".join([str(x) for x in commanded_torques]) + '\n'
 	# line = '0\t' + " ".join([str(x) for x in force]) + '\n'

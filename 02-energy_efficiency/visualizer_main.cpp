@@ -81,7 +81,7 @@ int main() {
 
     // create window and make it current
     glfwWindowHint(GLFW_VISIBLE, 0);
-    GLFWwindow* window = glfwCreateWindow(windowW, windowH, "SAI2.0 - CS225a", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(windowW, windowH, "SAI2.0 - 2d setup", NULL, NULL);
 	glfwSetWindowPos(window, windowPosX, windowPosY);
 	glfwShowWindow(window);
     glfwMakeContextCurrent(window);
