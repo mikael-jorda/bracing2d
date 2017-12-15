@@ -2,9 +2,8 @@
 // with physics and contact in a Dynamics3D virtual world. A graphics model of it is also shown using 
 // Chai3D.
 
-#include "model/ModelInterface.h"
-#include "model/RBDLModel.h"
-#include "simulation/Sai2Simulation.h"
+#include "Sai2Model.h"
+#include "Sai2Simulation.h"
 #include "redis/RedisClient.h"
 #include <dynamics3d.h>
 #include "timer/LoopTimer.h"
@@ -37,12 +36,8 @@ int main() {
 	cout << "Loading URDF world model file: " << world_file << endl;
 
 	// start redis client
-	HiredisServerInfo info;
-	info.hostname_ = "127.0.0.1";
-	info.port_ = 6379;
-	info.timeout_ = { 1, 500000 }; // 1.5 seconds
-	auto redis_client = CDatabaseRedisClient();
-	redis_client.serverIs(info);
+	auto redis_client = RedisClient();
+	redis_client.connect();
 
 	// set up signal handler
 	signal(SIGABRT, &sighandler);
@@ -50,13 +45,13 @@ int main() {
 	signal(SIGINT, &sighandler);
 
 	// load simulation world
-	auto sim = new Simulation::Sai2Simulation(world_file, Simulation::urdf, false);
+	auto sim = new Simulation::Sai2Simulation(world_file, false);
 
 	sim->setCollisionRestitution(0);
 	sim->setCoeffFrictionStatic(0.9);
 
 	// load robots
-	auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
+	auto robot = new Sai2Model::Sai2Model(robot_file, false);
 
 	sim->setJointPosition(robot_name, 3, -90.0/180.0*M_PI);
 	sim->setJointPosition(robot_name, 6, -90.0/180.0*M_PI);
@@ -120,10 +115,10 @@ int main() {
 		F2 << f2(1), f2(2), m2(0);
 
 		// write joint kinematics to redis
-		redis_client.setEigenMatrixDerived(JOINT_ANGLES_KEY, robot->_q);
-		redis_client.setEigenMatrixDerived(JOINT_VELOCITIES_KEY, robot->_dq);
+		redis_client.setEigenMatrixJSON(JOINT_ANGLES_KEY, robot->_q);
+		redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEY, robot->_dq);
 
-		redis_client.setCommandIs(SIM_TIMESTAMP_KEY,std::to_string(timer.elapsedTime()));
+		redis_client.set(SIM_TIMESTAMP_KEY,std::to_string(timer.elapsedTime()));
 
 		if(sim_counter % 500 == 0)
 		{

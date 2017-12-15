@@ -2,8 +2,8 @@
 // with physics and contact in a Dynamics3D virtual world. A graphics model of it is also shown using 
 // Chai3D.
 
-#include "model/ModelInterface.h"
-#include "graphics/ChaiGraphics.h"
+#include "Sai2Model.h"
+#include "Sai2Graphics.h"
 #include "redis/RedisClient.h"
 
 #include <GLFW/glfw3.h> //must be loaded after loading opengl/glew
@@ -43,20 +43,16 @@ int main() {
 	cout << "Loading URDF world model file: " << world_file << endl;
 
 	// start redis client
-	HiredisServerInfo info;
-	info.hostname_ = "127.0.0.1"; //"172.24.68.64";
-	info.port_ = 6379;
-	info.timeout_ = { 1, 500000 }; // 1.5 seconds
-	auto redis_client = CDatabaseRedisClient();
-	redis_client.serverIs(info);
+	auto redis_client = RedisClient();
+	redis_client.connect();
 
 	// load graphics scene
-	auto graphics = new Graphics::ChaiGraphics(world_file, Graphics::urdf, true);
+	auto graphics = new Sai2Graphics::Sai2Graphics(world_file, true);
 	Eigen::Vector3d camera_pos, camera_lookat, camera_vertical;
 	graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
 
 	// load robots
-	auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
+	auto robot = new Sai2Model::Sai2Model(robot_file, false);
 
 	/*------- Set up visualization -------*/
     // set up error callback
@@ -96,8 +92,8 @@ int main() {
     while (!glfwWindowShouldClose(window))
 	{
 		// read from Redis
-		redis_client.getEigenMatrixDerived(JOINT_ANGLES_KEY, robot->_q);
-		redis_client.getEigenMatrixDerived(JOINT_VELOCITIES_KEY, robot->_dq);
+		robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
+		robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
 
 		// update transformations
 		robot->updateModel();

@@ -4,9 +4,9 @@
 #include <math.h>
 #include <fstream>
 
-#include "model/ModelInterface.h"
-#include "graphics/ChaiGraphics.h"
-#include "simulation/Sai2Simulation.h"
+#include "Sai2Model.h"
+#include "Sai2Graphics.h"
+#include "Sai2Simulation.h"
 #include <dynamics3d.h>
 
 #include "force_sensor/ForceSensorSim.h"
@@ -27,9 +27,9 @@ const string robot_name = "4PBOT";
 const string camera_name = "camera_fixed";
 
 // simulation loop
-void control(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim);
-void simulation(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim);
-void logger(Model::ModelInterface* robot);
+void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim);
+void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim);
+void logger(Sai2Model::Sai2Model* robot);
 
 // initialize window manager
 GLFWwindow* glfwInitialize();
@@ -63,14 +63,14 @@ int main (int argc, char** argv) {
 	signal(SIGINT, &sighandler);
 
 	// load graphics scene
-	auto graphics = new Graphics::ChaiGraphics(world_file, Graphics::urdf, false);
+	auto graphics = new Sai2Graphics::Sai2Graphics(world_file, false);
 	Eigen::Vector3d camera_pos, camera_lookat, camera_vertical;
 	graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
 	// load robots
-	auto robot = new Model::ModelInterface(robot_file, Model::rbdl, Model::urdf, false);
+	auto robot = new Sai2Model::Sai2Model(robot_file, false);
 
 	// load simulation world
-	auto sim = new Simulation::Sai2Simulation(world_file, Simulation::urdf, false);
+	auto sim = new Simulation::Sai2Simulation(world_file, false);
 	sim->setCollisionRestitution(0);
 	sim->setCoeffFrictionStatic(0.6);
 
@@ -100,7 +100,7 @@ int main (int argc, char** argv) {
 
 	// start the logging thread
 	thread logging_thread(logger, robot);
-	
+
     // while window is open:
     while (!glfwWindowShouldClose(window)) {
 		// update kinematic models
@@ -189,7 +189,7 @@ int main (int argc, char** argv) {
 }
 
 //------------------------------------------------------------------------------
-void control(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim) {
+void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 	robot->updateModel();
 
 	int dof = robot->dof();
@@ -252,7 +252,7 @@ void control(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim) {
 		sim->getJointVelocities(robot_name, robot->_dq);
 		robot->updateModel();
 
-		robot->J_0(J3d, link_name, pos_in_link);
+		robot->J(J3d, link_name, pos_in_link);
 		Jv2d = J3d.block(1,0,2,dof);
 		robot->operationalSpaceMatrices(Lambda, Jbar, N, Jv2d);
 
@@ -292,6 +292,10 @@ void control(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim) {
 		// -------------------------------------------
 		if(controller_counter % 500 == 0)
 		{
+			// cout << "J : \n" << J3d << endl;
+			// cout << "xerr : " << (x - xd).transpose() << endl;
+			// cout << "lambda : " << Lambda << endl;
+			// cout << "pos task force : " << pos_task_force.transpose() << endl;
 			// cout << command_torques.transpose() << endl;
 			// cout << 180.0/M_PI*robot->_q.transpose() << endl;
 			// cout << endl;
@@ -318,7 +322,7 @@ void control(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim) {
 }
 
 //------------------------------------------------------------------------------
-void simulation(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim) {
+void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 	fSimulationRunning = true;
 
 	// create a timer
@@ -353,7 +357,7 @@ void simulation(Model::ModelInterface* robot, Simulation::Sai2Simulation* sim) {
 
 
 //------------------------------------------------------------------------------
-void logger(Model::ModelInterface* robot)
+void logger(Sai2Model::Sai2Model* robot)
 {
 	std::ofstream fgc_file;
 	std::ofstream ee_pos_file;
