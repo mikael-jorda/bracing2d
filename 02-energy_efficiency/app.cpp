@@ -252,7 +252,7 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		sim->getJointVelocities(robot_name, robot->_dq);
 		robot->updateModel();
 
-		robot->J(J3d, link_name, pos_in_link);
+		robot->J_0(J3d, link_name, pos_in_link);
 		Jv2d = J3d.block(1,0,2,dof);
 		robot->operationalSpaceMatrices(Lambda, Jbar, N, Jv2d);
 
