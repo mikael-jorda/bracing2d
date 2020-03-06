@@ -2,14 +2,16 @@
 
 <world name="demo_world" gravity="0.0 0.0 -9.81">
 
-	<robot name="4PBOT">
+	<robot name="4RBOT">
 		<!-- model node is required -->
-		<model dir="../resources/02-energy_efficiency" path="4pbot_fixed.urdf" name="4pbot" />
+		<model dir="./resources" path="4rbot_fixed.urdf" name="4rbot" />
 		<!-- origin node is optional -->
-		<origin xyz="0.0 -1.5 0.050001" rpy="0 0 0" />
+		<origin xyz="0.0 -1.5 0.4" rpy="0 0 0" />
+		<!-- <origin xyz="0.0 0.0 0.0" rpy="0 0 0" /> -->
 	</robot>
 
 	<static_object name="Floor">
+		<!-- <origin xyz="0.0 0.0 -0.45" rpy="0 0 0" /> -->
 		<origin xyz="0.0 0.0 -0.05" rpy="0 0 0" />
 		<collision>
 	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
@@ -28,7 +30,7 @@
 	    </visual>
 	</static_object>
 
-	<static_object name="Obstacle">
+<!-- 	<static_object name="Obstacle">
 		<origin xyz="0.0 -0.0 0.6" rpy="0 0 0" />
 		<collision>
 	        <origin xyz="-0.02 0.0 0.0" rpy="0 1.5707963267948966 0" />
@@ -45,7 +47,7 @@
 		        <color rgba="0.0 0.0 0.5 1.0" />
 	        </material>
 	    </visual>
-	</static_object>
+	</static_object> -->
 
 	<light name="light1" type="directional">
 		<position xyz="2.0 -2.0 -2.0" />

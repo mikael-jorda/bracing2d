@@ -35,6 +35,12 @@ plt.figure(3)
 plt.plot(norm2_xerror)
 plt.title("norm x error")
 
+plt.figure(4)
+plt.plot(x_error[:,0],label='y')
+plt.plot(x_error[:,1],label='z')
+plt.title("x error")
+plt.legend()
+
 plt.show()
 
 

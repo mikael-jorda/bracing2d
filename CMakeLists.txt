@@ -4,7 +4,7 @@ SET(CMAKE_CXX_FLAGS "-std=c++11")
 SET(CMAKE_BUILD_TYPE "Debug")
 
 # set common source
-set (BRACING2D_COMMON_SOURCE
+set (BRACING2D_COMMON_SOURCE ${PROJECT_SOURCE_DIR}/src/MomentumObserver.cpp
 	)
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
@@ -74,6 +74,8 @@ set(BRACING2D_COMMON_LIBRARIES
 # add apps
 set (BRACING2D_BINARY_DIR                  ${PROJECT_SOURCE_DIR}/bin)
 
-add_subdirectory(01-gravity_compensation)
-add_subdirectory(02-energy_efficiency)
-add_subdirectory(03-contact_identification)
+# add_subdirectory(01-gravity_compensation)
+# add_subdirectory(02-energy_efficiency)
+# add_subdirectory(03-contact_identification)
+add_subdirectory(04-free_space_2d_bracing)
+add_subdirectory(05-contact_task_2d_bracing)

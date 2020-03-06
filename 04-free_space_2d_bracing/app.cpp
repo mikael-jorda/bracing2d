@@ -11,6 +11,9 @@
 
 #include "force_sensor/ForceSensorSim.h"
 #include "timer/LoopTimer.h"
+#include "filters/ButterworthFilter.h"
+
+#include "MomentumObserver.h"
 
 #include <GLFW/glfw3.h> //must be loaded after loading opengl/glew as part of graphicsinterface
 
@@ -21,9 +24,9 @@ void sighandler(int){fSimulationRunning = false;}
 using namespace std;
 using namespace Eigen;
 
-const string world_file = "../resources/02-energy_efficiency/world.urdf";
-const string robot_file = "../resources/02-energy_efficiency/4pbot_fixed.urdf";
-const string robot_name = "4PBOT";
+const string world_file = "./resources/world.urdf";
+const string robot_file = "./resources/4rbot_fixed.urdf";
+const string robot_name = "4RBOT";
 
 const string camera_name = "camera_fixed";
 
@@ -53,7 +56,8 @@ bool fTransZp = false;
 bool fTransZn = false;
 bool fRotPanTilt = false;
 
-Eigen::VectorXd command_torques;
+VectorXd command_torques;
+Eigen::Vector2d xd;
 VectorXd disturbance_torques;
 
 
@@ -69,19 +73,21 @@ int main (int argc, char** argv) {
 	auto graphics = new Sai2Graphics::Sai2Graphics(world_file, false);
 	Eigen::Vector3d camera_pos, camera_lookat, camera_vertical;
 	graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
-	// load robots
-	auto robot = new Sai2Model::Sai2Model(robot_file, false);
 
 	// load simulation world
 	auto sim = new Simulation::Sai2Simulation(world_file, false);
 	sim->setCollisionRestitution(0);
 	sim->setCoeffFrictionStatic(0.6);
 
+	// load robots
+	Affine3d T_world_robot = sim->getRobotBaseTransform(robot_name);
+	auto robot = new Sai2Model::Sai2Model(robot_file, false, T_world_robot);
+
 	// set initial condition
-	robot->_q << -50.0/180.0*M_PI,
-				 -15.0/180.0*M_PI,
-				 -95.0/180.0*M_PI,
-				  60.0/180.0*M_PI;
+	robot->_q <<  25.0/180.0*M_PI,
+				 -60.0/180.0*M_PI,
+				  80.0/180.0*M_PI,
+				 -80.0/180.0*M_PI;
 	sim->setJointPositions(robot_name, robot->_q);
 	robot->updateModel();
 
@@ -197,7 +203,7 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 
 	int dof = robot->dof();
 	command_torques = Eigen::VectorXd::Zero(dof);
-	disturbance_torques.setZero(dof);
+	// disturbance_torques.setZero(dof);
 	Eigen::VectorXd gravity_compensation;
 
 	// joint task
@@ -207,7 +213,7 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 
 	// position task
 	const string link_name = "link4";
-	const Eigen::Vector3d pos_in_link = Eigen::Vector3d(0.0, 0.0, 1.0);
+	const Eigen::Vector3d pos_in_link = Eigen::Vector3d(0.0, 1.0, 0.0);
 	Eigen::MatrixXd J3d, Jv2d, Jw2d, J2d, Lambda, N, Jbar;
 	J3d = Eigen::MatrixXd::Zero(6, dof);
 	Jw2d = Eigen::MatrixXd::Zero(1, dof);
@@ -227,7 +233,16 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 	Eigen::Vector2d x, xdot;
 	Eigen::Vector3d x_init;
 	robot->position(x_init, link_name, pos_in_link);
-	Eigen::Vector2d xd = x_init.tail(2);
+	xd = x_init.tail(2);
+
+	// momentum observer
+	auto tau_observer = new MomentumObserver(robot, 0.001);
+	double gain = 15.0;
+	tau_observer->setGain(gain * MatrixXd::Identity(dof,dof));
+	VectorXd tau_observed = VectorXd::Zero(dof);
+
+	// filter for commanded_torques
+	auto filter_tau_cmd = new ButterworthFilter(dof, 0.05);
 
 	// create a loop timer
 	double control_freq = 1000;
@@ -256,6 +271,11 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		sim->getJointVelocities(robot_name, robot->_dq);
 		robot->updateModel();
 
+		tau_observer->update(command_torques);
+		tau_observed = tau_observer->getDisturbanceTorqueEstimate();
+		tau_observed(2) = 0;
+		tau_observed(3) = 0;
+
 		robot->J_0(J3d, link_name, pos_in_link);
 		Jv2d = J3d.block(1,0,2,dof);
 		robot->operationalSpaceMatrices(Lambda, Jbar, N, Jv2d);
@@ -267,17 +287,25 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		robot->gravityVector(gravity_compensation);
 
 		//----------- pos task
+		double amplitude = 0.2;
+		double freq_motion = 0.4;
+		xd(0) = x_init(1) + amplitude * sin(2 * M_PI * freq_motion * curr_time);
+		Vector2d dxd = Vector2d::Zero();
+		dxd(0) = 2 * M_PI * freq_motion * amplitude * cos(2 * M_PI * freq_motion * curr_time);
+		Vector2d ddxd = Vector2d::Zero();
+		ddxd(0) = -2 * M_PI * freq_motion * 2 * M_PI * freq_motion * amplitude * sin(2 * M_PI * freq_motion * curr_time);
+
 		robot->position(pos3d, link_name, pos_in_link);
 		x = pos3d.tail(2);
 		xdot = Jv2d*robot->_dq;
 
-		pos_task_force = Lambda*(-kp_pos*(x - xd) - kv_pos*xdot);
+		pos_task_force = Lambda*(ddxd - kp_pos*(x - xd) - kv_pos*(xdot - dxd));
 		if(!gpjs)
 		{
 			pos_task_force += Jbar.transpose() * gravity_compensation;
 			gravity_compensation.setZero();
 		}
-		// pos_task_force += Jbar.transpose() * disturbance_torques;
+		pos_task_force += Jbar.transpose() * tau_observed;
 		pos_task_torques = Jv2d.transpose() * pos_task_force;
 
 		//----- Joint nullspace damping
@@ -285,6 +313,7 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 
 		//------ Final torques
 		command_torques = pos_task_torques + N.transpose()*joint_task_torques + gravity_compensation;
+		// command_torques = filter_tau_cmd->update(command_torques);
 		// if(gpjs)
 		// {
 		// 	command_torques += gravity_compensation;
@@ -296,11 +325,27 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		sim->setJointTorques(robot_name, command_torques);
 		
 
+		// MatrixXd C = MatrixXd::Zero(dof,dof);
+		// robot->factorizedChristoffelMatrix(C);
+		// VectorXd coriolis = VectorXd::Zero(dof);
+		// robot->coriolisForce(coriolis);
+		// VectorXd diff_coriolis = C * robot->_dq - coriolis;
+
+		// cout << diff_coriolis.norm() << endl;
+
+		// cout << "tau dist sim : " << disturbance_torques.transpose() << endl;
+		// cout << "tau dist obs : " << tau_observed.transpose() << endl;
+		// cout << "difference : " << (tau_observed - disturbance_torques).norm() << endl;
+		// cout << endl;
+
 		// -------------------------------------------
 		if(controller_counter % 500 == 0)
 		{
 			// cout << "J : \n" << J3d << endl;
+			// cout << "x init : " << x_init.transpose() << endl;
 			// cout << "xerr : " << (x - xd).transpose() << endl;
+			// cout << "x : " << x.transpose() << endl;
+			// cout << "xd : " << xd.transpose() << endl;
 			// cout << "lambda : " << Lambda << endl;
 			// cout << "pos task force : " << pos_task_force.transpose() << endl;
 			// cout << command_torques.transpose() << endl;
@@ -308,7 +353,7 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 			// cout << endl;
 			// cout << controller_counter << endl;
 		}
-		if(controller_counter == 1000)
+		if(controller_counter == 10000)
 		{
 			gpjs = false;
 		}
@@ -336,7 +381,7 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 
 	// create a force sensor
 	const string link_name = "link2";
-	const Vector3d pos_in_link = Vector3d(0, 0, 0.5);
+	const Vector3d pos_in_link = Vector3d(0, 1.0, 0);
 	Affine3d transform_in_link = Affine3d::Identity();
 	transform_in_link.translation() = pos_in_link;
 	auto fsensor = new ForceSensorSim(robot_name, link_name, transform_in_link, robot);
@@ -356,6 +401,8 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 	double last_time = timer.elapsedTime(); //secs
 	bool fTimerDidSleep = true;
 
+	unsigned long long sim_counter = 0;
+
 	while (fSimulationRunning) {
 		fTimerDidSleep = timer.waitForNextLoop();
 
@@ -364,14 +411,28 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		double loop_dt = curr_time - last_time; 
 		sim->integrate(loop_dt);
 
+		// sim->showContactInfo();
+
 		fsensor->update(sim);
-		fsensor->getForce(f_contact);
-		fsensor->getMoment(m_contact);
+		// fsensor->getForce(f_contact);
+		// fsensor->getMoment(m_contact);
 		fsensor->getForceMoment(fm_contact);
-		robot->J_0(J_contact, link_name, pos_in_link);
-		robot->Jv(Jv_contact, link_name, pos_in_link);
-		robot->Jw(Jw_contact, link_name);
-		disturbance_torques = Jv_contact.transpose() * f_contact + Jw_contact.transpose() * m_contact;
+
+		// fm_contact(2) *= -1;
+		// fm_contact(5) *= -1;
+
+		robot->J_0WorldFrame(J_contact, link_name, pos_in_link);
+		// robot->Jv(Jv_contact, link_name, pos_in_link);
+		// robot->Jw(Jw_contact, link_name);
+		// disturbance_torques = Jv_contact.transpose() * f_contact + Jw_contact.transpose() * m_contact;
+		disturbance_torques = -J_contact.transpose() * fm_contact;
+
+		// if(sim_counter % 1000 == 0)
+		// {
+		// 	cout << "contact force moment :\n" << fm_contact.transpose() << endl;
+		// 	cout << "J contact :\n" << J_contact << endl;
+		// 	cout << endl;
+		// }
 
 		// cout << f_contact.transpose() << endl;
 		// cout << (Jw_contact.transpose() * m_contact).transpose() << endl;
@@ -385,6 +446,7 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 
 		// update last time
 		last_time = curr_time;
+		sim_counter++;
 	}
 
 	double end_time = timer.elapsedTime();
@@ -400,17 +462,17 @@ void logger(Sai2Model::Sai2Model* robot)
 {
 	std::ofstream data_file;
 
-	data_file.open("../../02-energy_efficiency/data_logging/data/data.txt");
+	data_file.open("../../04-free_space_2d_bracing/data_logging/data/data.txt");
 
 
 	data_file << "Timestep \t x_error[2] \t command torques[4]\n";
 
 	Eigen::Vector3d ee_pos;
 	const string link_name = "link4";
-	const Eigen::Vector3d pos_in_link = Eigen::Vector3d(0.0, 0.0, 1.0);
+	const Eigen::Vector3d pos_in_link = Eigen::Vector3d(0.0, 1.0, 0.0);
 
-	robot->position(ee_pos, link_name, pos_in_link);
-	Eigen::Vector2d xd = ee_pos.tail(2);
+	// robot->position(ee_pos, link_name, pos_in_link);
+	// Eigen::Vector2d xd = ee_pos.tail(2);
 
 	// create a loop timer
 	LoopTimer timer;

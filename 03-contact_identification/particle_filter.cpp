@@ -7,6 +7,7 @@
 #include "Sai2Graphics.h"
 #include "Sai2Simulation.h"
 #include <dynamics3d.h>
+#include <random>
 
 #include <fstream>
 

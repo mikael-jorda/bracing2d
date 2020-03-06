@@ -16,6 +16,7 @@ file = np.loadtxt(sys.argv[1] ,skiprows=1)
 time = file[:,0]
 x_error = file[:,1:3]
 commanded_torques = file[:,3:7]
+f_sensed = file[:,7:9]
 # cmap = ['r','k']
 # 
 
@@ -31,9 +32,13 @@ plt.figure(2)
 plt.plot(norm2_torques)
 plt.title("Total motor power")
 
-plt.figure(3)
-plt.plot(norm2_xerror)
-plt.title("norm x error")
+plt.figure(4)
+plt.plot(x_error[:,0])
+plt.title("y error")
+
+plt.figure(5)
+plt.plot(f_sensed)
+plt.title("f sensed")
 
 plt.show()
 
