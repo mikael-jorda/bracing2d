@@ -1,9 +1,11 @@
 # create an executable
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BRACING2D_BINARY_DIR}/04-free_space_2d_bracing)
 ADD_EXECUTABLE (app04 app.cpp ${BRACING2D_COMMON_SOURCE})
+ADD_EXECUTABLE (app04-bis app_bracing_task.cpp ${BRACING2D_COMMON_SOURCE})
 
 # and link the library against the executable
 TARGET_LINK_LIBRARIES (app04 ${BRACING2D_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (app04-bis ${BRACING2D_COMMON_LIBRARIES})
 
 # export resources such as model files.
 # NOTE: this requires an install build
